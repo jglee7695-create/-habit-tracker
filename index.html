@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>루틴 트래커</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f6f8;
+    --card:#ffffff;
+    --ink:#1f2430;
+    --sub:#6b7280;
+    --line:#e5e7eb;
+    --accent:#4f46e5;
+    --accent-soft:#eef2ff;
+    --green:#16a34a;
+    --red:#dc2626;
+    --amber:#d97706;
+    --c1:#4f46e5; /* 조기 기상 */
+    --c2:#0891b2; /* 운동 실행 */
+    --c3:#7c3aed; /* 메일 리뷰 */
+    --c4:#ea580c; /* 금주하기 */
+    --c5:#059669; /* 공부하기 */
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    padding:24px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  h1{font-size:22px;margin:0;font-weight:700;}
+  .sub-title{color:var(--sub);font-size:13px;margin-top:4px;}
+  .month-nav{
+    display:flex;align-items:center;gap:10px;
+    background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:6px 10px;
+  }
+  .month-nav button{
+    border:none;background:transparent;cursor:pointer;
+    font-size:16px;color:var(--sub);padding:4px 8px;border-radius:6px;
+  }
+  .month-nav button:hover{background:var(--accent-soft);color:var(--accent);}
+  .month-label{font-weight:600;font-size:15px;min-width:110px;text-align:center;}
+  .today-btn{
+    border:1px solid var(--accent);color:var(--accent);background:#fff;
+    border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:600;
+  }
+  .today-btn:hover{background:var(--accent-soft);}
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap:20px;
+  }
+  @media(max-width:860px){.grid{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px 20px;
+    margin-bottom:20px;
+  }
+  .card h2{font-size:15px;margin:0 0 14px 0;font-weight:700;}
+
+  /* Today check panel */
+  .today-panel .date-row{
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;
+  }
+  .date-row .d{font-size:14px;color:var(--sub);}
+  .habit-list{display:flex;flex-direction:column;gap:8px;}
+  .habit-item{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    transition:background .15s;
+  }
+  .habit-item .name{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;}
+  .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .toggle{
+    width:44px;height:26px;border-radius:999px;background:#e5e7eb;position:relative;
+    cursor:pointer;transition:background .15s;border:none;flex-shrink:0;
+  }
+  .toggle::after{
+    content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;
+    background:#fff;border-radius:50%;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.2);
+  }
+  .toggle.on{background:var(--green);}
+  .toggle.on::after{left:21px;}
+  .habit-item.done{background:#f0fdf4;}
+
+  /* Calendar */
+  .cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;}
+  .cal-head span{text-align:center;font-size:12px;color:var(--sub);font-weight:600;}
+  .cal-body{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-cell{
+    aspect-ratio:1/1;border-radius:10px;border:1px solid var(--line);
+    padding:6px;display:flex;flex-direction:column;justify-content:space-between;
+    cursor:pointer;background:#fff;position:relative;
+  }
+  .cal-cell.empty{border:none;cursor:default;}
+  .cal-cell:hover:not(.empty){border-color:var(--accent);}
+  .cal-cell.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .cal-cell.today .daynum{color:var(--accent);font-weight:800;}
+  .daynum{font-size:12px;color:var(--ink);font-weight:600;}
+  .dots{display:flex;flex-wrap:wrap;gap:3px;}
+  .dots .dot{width:6px;height:6px;}
+  .cal-cell .pct{
+    position:absolute;bottom:4px;right:6px;font-size:9px;color:var(--sub);
+  }
+
+  /* Stats */
+  .stat-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .stat-row:last-child{margin-bottom:0;}
+  .stat-row .name{width:90px;font-size:13px;font-weight:500;flex-shrink:0;display:flex;align-items:center;gap:8px;}
+  .bar-bg{flex:1;height:10px;background:#f1f2f4;border-radius:999px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:999px;}
+  .stat-row .pct-txt{width:40px;text-align:right;font-size:12px;color:var(--sub);font-weight:600;}
+
+  .summary-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+  .mini-card{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;text-align:center;
+  }
+  .mini-card .val{font-size:24px;font-weight:800;color:var(--accent);}
+  .mini-card .lbl{font-size:12px;color:var(--sub);margin-top:4px;}
+
+  canvas{max-width:100%;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;}
+  .legend span{font-size:11px;color:var(--sub);display:flex;align-items:center;gap:5px;}
+
+  footer{text-align:center;color:var(--sub);font-size:11px;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>루틴 트래커</h1>
+      <div class="sub-title">조기 기상 · 운동 실행 · 메일 리뷰 · 금주하기 · 공부하기</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="today-btn" id="todayBtn">오늘로 이동</button>
+      <div class="month-nav">
+        <button id="prevMonth">◀</button>
+        <span class="month-label" id="monthLabel"></span>
+        <button id="nextMonth">▶</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="summary-cards" id="summaryCards"></div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>월별 캘린더</h2>
+        <div class="cal-head" id="calHead"></div>
+        <div class="cal-body" id="calBody"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="card">
+        <h2>일별 완료 추이</h2>
+        <canvas id="trendChart" height="90"></canvas>
+      </div>
+    </div>
+
+    <div>
+      <div class="card today-panel">
+        <h2>습관 체크</h2>
+        <div class="date-row">
+          <div class="d" id="selectedDateLabel"></div>
+        </div>
+        <div class="habit-list" id="habitList"></div>
+      </div>
+      <div class="card">
+        <h2>이번 달 습관별 달성률</h2>
+        <div id="statBars"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>데이터는 이 브라우저에 안전하게 저장됩니다 (localStorage) · 다른 기기와는 동기화되지 않습니다.</footer>
+</div>
+
+<script>
+const HABITS = [
+  { id:'wake',   name:'조기 기상',  color:'var(--c1)', hex:'#4f46e5' },
+  { id:'exercise', name:'운동 실행', color:'var(--c2)', hex:'#0891b2' },
+  { id:'mail',   name:'메일 리뷰',  color:'var(--c3)', hex:'#7c3aed' },
+  { id:'noalcohol', name:'금주하기', color:'var(--c4)', hex:'#ea580c' },
+  { id:'read',   name:'공부하기',  color:'var(--c5)', hex:'#059669' },
+];
+
+const STORAGE_KEY = 'routine_tracker_data_v1';
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+function fmt(d){ return d.toISOString().slice(0,10); }
+
+let today = new Date();
+today.setHours(0,0,0,0);
+let viewYear = today.getFullYear();
+let viewMonth = today.getMonth(); // 0-indexed
+let selectedDate = fmt(today);
+
+const monthLabel = document.getElementById('monthLabel');
+const calHead = document.getElementById('calHead');
+const calBody = document.getElementById('calBody');
+const habitList = document.getElementById('habitList');
+const selectedDateLabel = document.getElementById('selectedDateLabel');
+const statBars = document.getElementById('statBars');
+const summaryCards = document.getElementById('summaryCards');
+const legend = document.getElementById('legend');
+
+const WEEKDAYS = ['일','월','화','수','목','금','토'];
+WEEKDAYS.forEach(w=>{
+  const s = document.createElement('span');
+  s.textContent = w;
+  calHead.appendChild(s);
+});
+
+HABITS.forEach(h=>{
+  const s = document.createElement('span');
+  s.innerHTML = `<span class="dot" style="background:${h.hex}"></span>${h.name}`;
+  legend.appendChild(s);
+});
+
+let trendChart = null;
+
+function renderAll(){
+  renderMonthLabel();
+  renderCalendar();
+  renderHabitList();
+  renderStats();
+  renderSummary();
+  renderTrend();
+}
+
+function renderMonthLabel(){
+  monthLabel.textContent = `${viewYear}년 ${viewMonth+1}월`;
+}
+
+function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+
+function renderCalendar(){
+  calBody.innerHTML = '';
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const totalDays = daysInMonth(viewYear, viewMonth);
+
+  for(let i=0;i<firstDow;i++){
+    const empty = document.createElement('div');
+    empty.className = 'cal-cell empty';
+    calBody.appendChild(empty);
+  }
+
+  for(let day=1; day<=totalDays; day++){
+    const dateObj = new Date(viewYear, viewMonth, day);
+    const key = fmt(dateObj);
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    if(key === fmt(today)) cell.classList.add('today');
+    if(key === selectedDate) cell.classList.add('selected');
+
+    const dayEntry = data[key] || {};
+    const doneList = HABITS.filter(h=>dayEntry[h.id]);
+    const pct = Math.round((doneList.length / HABITS.length) * 100);
+
+    const num = document.createElement('div');
+    num.className = 'daynum';
+    num.textContent = day;
+    cell.appendChild(num);
+
+    const dots = document.createElement('div');
+    dots.className = 'dots';
+    doneList.forEach(h=>{
+      const d = document.createElement('div');
+      d.className = 'dot';
+      d.style.background = h.hex;
+      dots.appendChild(d);
+    });
+    cell.appendChild(dots);
+
+    if(doneList.length>0){
+      const pctEl = document.createElement('div');
+      pctEl.className = 'pct';
+      pctEl.textContent = pct+'%';
+      cell.appendChild(pctEl);
+    }
+
+    cell.addEventListener('click', ()=>{
+      selectedDate = key;
+      renderAll();
+    });
+
+    calBody.appendChild(cell);
+  }
+}
+
+function renderHabitList(){
+  habitList.innerHTML = '';
+  const d = new Date(selectedDate+'T00:00:00');
+  const opts = {month:'long', day:'numeric', weekday:'short'};
+  selectedDateLabel.textContent = d.toLocaleDateString('ko-KR', opts);
+
+  const entry = data[selectedDate] || {};
+
+  HABITS.forEach(h=>{
+    const item = document.createElement('div');
+    item.className = 'habit-item' + (entry[h.id] ? ' done' : '');
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'name';
+    nameDiv.innerHTML = `<span class="dot" style="background:${h.hex}"></span>${h.name}`;
+
+    const toggle = document.createElement('button');
+    toggle.className = 'toggle' + (entry[h.id] ? ' on' : '');
+    toggle.addEventListener('click', ()=>{
+      if(!data[selectedDate]) data[selectedDate] = {};
+      data[selectedDate][h.id] = !data[selectedDate][h.id];
+      save();
+      renderAll();
+    });
+
+    item.appendChild(nameDiv);
+    item.appendChild(toggle);
+    habitList.appendChild(item);
+  });
+}
+
+function monthEntries(){
+  const totalDays = daysInMonth(viewYear, viewMonth);
+  const entries = [];
+  for(let day=1; day<=totalDays; day++){
+    const key = fmt(new Date(viewYear, viewMonth, day));
+    entries.push({ key, day, entry: data[key] || {} });
+  }
+  return entries;
+}
+
+function renderStats(){
+  statBars.innerHTML = '';
+  const entries = monthEntries();
+  // only count days up to today if current month, else full month
+  const isCurrentMonth = (viewYear===today.getFullYear() && viewMonth===today.getMonth());
+  const relevant = isCurrentMonth ? entries.filter(e=>new Date(e.key)<=today) : entries;
+  const denom = relevant.length || 1;
+
+  HABITS.forEach(h=>{
+    const count = relevant.filter(e=>e.entry[h.id]).length;
+    const pct = Math.round((count/denom)*100);
+
+    const row = document.createElement('div');
+    row.className = 'stat-row';
+    row.innerHTML = `
+      <div class="name"><span class="dot" style="background:${h.hex}"></span>${h.name}</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${h.hex}"></div></div>
+      <div class="pct-txt">${pct}%</div>
+    `;
+    statBars.appendChild(row);
+  });
+}
+
+function currentStreak(habitId){
+  let streak = 0;
+  let d = new Date(today);
+  while(true){
+    const key = fmt(d);
+    const entry = data[key];
+    if(entry && entry[habitId]){
+      streak++;
+      d.setDate(d.getDate()-1);
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+function renderSummary(){
+  summaryCards.innerHTML = '';
+  const entries = monthEntries();
+  const isCurrentMonth = (viewYear===today.getFullYear() && viewMonth===today.getMonth());
+  const relevant = isCurrentMonth ? entries.filter(e=>new Date(e.key)<=today) : entries;
+  const denom = relevant.length || 1;
+
+  const totalPossible = denom * HABITS.length;
+  const totalDone = relevant.reduce((sum,e)=> sum + HABITS.filter(h=>e.entry[h.id]).length, 0);
+  const overallPct = Math.round((totalDone/totalPossible)*100) || 0;
+
+  const perfectDays = relevant.filter(e => HABITS.every(h=>e.entry[h.id])).length;
+
+  // best streak among habits (current, based on today regardless of viewed month)
+  const bestStreakHabit = HABITS.reduce((best,h)=>{
+    const s = currentStreak(h.id);
+    return s > best.s ? {name:h.name, s} : best;
+  }, {name:'-', s:0});
+
+  const cards = [
+    { val: overallPct+'%', lbl:'이번 달 전체 달성률' },
+    { val: perfectDays+'일', lbl:'모든 습관 완료한 날' },
+    { val: bestStreakHabit.s>0 ? `${bestStreakHabit.s}일 (${bestStreakHabit.name})` : '0일', lbl:'최장 연속 기록' },
+  ];
+
+  cards.forEach(c=>{
+    const div = document.createElement('div');
+    div.className = 'mini-card';
+    div.innerHTML = `<div class="val">${c.val}</div><div class="lbl">${c.lbl}</div>`;
+    summaryCards.appendChild(div);
+  });
+}
+
+function renderTrend(){
+  const entries = monthEntries();
+  const labels = entries.map(e=>e.day);
+  const values = entries.map(e=> HABITS.filter(h=>e.entry[h.id]).length);
+
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'완료한 습관 수',
+        data: values,
+        backgroundColor:'#4f46e5',
+        borderRadius:4,
+        maxBarThickness:18,
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        y:{ beginAtZero:true, max:HABITS.length, ticks:{ stepSize:1, font:{size:11} } },
+        x:{ ticks:{ font:{size:10} } }
+      }
+    }
+  });
+}
+
+document.getElementById('prevMonth').addEventListener('click', ()=>{
+  viewMonth--;
+  if(viewMonth<0){ viewMonth=11; viewYear--; }
+  renderAll();
+});
+document.getElementById('nextMonth').addEventListener('click', ()=>{
+  viewMonth++;
+  if(viewMonth>11){ viewMonth=0; viewYear++; }
+  renderAll();
+});
+document.getElementById('todayBtn').addEventListener('click', ()=>{
+  viewYear = today.getFullYear();
+  viewMonth = today.getMonth();
+  selectedDate = fmt(today);
+  renderAll();
+});
+
+renderAll();
+</script>
+</body>
+</html>
