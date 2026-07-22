@@ -2,7 +2,12 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="루틴 트래커">
+<meta name="theme-color" content="#4f46e5">
 <title>루틴 트래커</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
@@ -23,172 +28,221 @@
     --c4:#ea580c; /* 금주하기 */
     --c5:#059669; /* 공부하기 */
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{ -webkit-text-size-adjust:100%; }
   body{
     margin:0;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",Roboto,sans-serif;
     background:var(--bg);
     color:var(--ink);
-    padding:24px;
+    padding:14px 14px calc(24px + env(safe-area-inset-bottom)) 14px;
+    padding-top:calc(14px + env(safe-area-inset-top));
+    font-size:15px;
   }
   .wrap{max-width:1080px;margin:0 auto;}
+
+  /* Header: stacked & full-width on mobile, single row on desktop */
   header{
     display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin-bottom:20px;
-    flex-wrap:wrap;
+    flex-direction:column;
     gap:12px;
+    margin-bottom:16px;
   }
-  h1{font-size:22px;margin:0;font-weight:700;}
-  .sub-title{color:var(--sub);font-size:13px;margin-top:4px;}
+  .header-top{width:100%;}
+  h1{font-size:20px;margin:0;font-weight:700;}
+  .sub-title{color:var(--sub);font-size:12.5px;margin-top:3px;line-height:1.4;}
+  .header-controls{
+    display:flex;gap:8px;align-items:center;width:100%;
+  }
   .month-nav{
-    display:flex;align-items:center;gap:10px;
+    display:flex;align-items:center;justify-content:space-between;gap:4px;
     background:var(--card);border:1px solid var(--line);
-    border-radius:10px;padding:6px 10px;
+    border-radius:10px;padding:4px;flex:1;
   }
   .month-nav button{
     border:none;background:transparent;cursor:pointer;
-    font-size:16px;color:var(--sub);padding:4px 8px;border-radius:6px;
+    font-size:16px;color:var(--sub);padding:8px 12px;border-radius:8px;
+    min-width:40px;min-height:40px;
   }
-  .month-nav button:hover{background:var(--accent-soft);color:var(--accent);}
-  .month-label{font-weight:600;font-size:15px;min-width:110px;text-align:center;}
+  .month-nav button:active{background:var(--accent-soft);color:var(--accent);}
+  .month-label{font-weight:600;font-size:14px;text-align:center;flex:1;}
   .today-btn{
     border:1px solid var(--accent);color:var(--accent);background:#fff;
-    border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:600;
+    border-radius:10px;padding:0 14px;font-size:13px;cursor:pointer;font-weight:600;
+    min-height:40px;white-space:nowrap;flex-shrink:0;
   }
-  .today-btn:hover{background:var(--accent-soft);}
+  .today-btn:active{background:var(--accent-soft);}
 
+  @media(min-width:640px){
+    header{flex-direction:row;align-items:center;justify-content:space-between;}
+    .header-top{width:auto;}
+    .header-controls{width:auto;}
+    h1{font-size:22px;}
+  }
+
+  /* Layout: mobile-first single column, reordered so today's check-in comes first */
   .grid{
     display:grid;
-    grid-template-columns: 1.35fr 1fr;
-    gap:20px;
+    gap:14px;
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "today"
+      "stats"
+      "calendar"
+      "trend";
   }
-  @media(max-width:860px){.grid{grid-template-columns:1fr;}}
+  .area-today{grid-area:today;}
+  .area-stats{grid-area:stats;}
+  .area-calendar{grid-area:calendar;}
+  .area-trend{grid-area:trend;}
+
+  @media(min-width:860px){
+    .grid{
+      grid-template-columns: 1.35fr 1fr;
+      gap:20px;
+      grid-template-areas:
+        "calendar today"
+        "trend stats";
+    }
+  }
 
   .card{
     background:var(--card);
     border:1px solid var(--line);
     border-radius:14px;
-    padding:18px 20px;
-    margin-bottom:20px;
+    padding:16px;
   }
-  .card h2{font-size:15px;margin:0 0 14px 0;font-weight:700;}
+  .card h2{font-size:14px;margin:0 0 12px 0;font-weight:700;}
+  @media(min-width:640px){
+    .card{padding:18px 20px;}
+    .card h2{font-size:15px;}
+  }
 
   /* Today check panel */
   .today-panel .date-row{
-    display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;
   }
-  .date-row .d{font-size:14px;color:var(--sub);}
+  .date-row .d{font-size:14px;color:var(--sub);font-weight:600;}
   .habit-list{display:flex;flex-direction:column;gap:8px;}
   .habit-item{
     display:flex;align-items:center;justify-content:space-between;
-    padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    padding:13px 14px;border:1px solid var(--line);border-radius:12px;
     transition:background .15s;
   }
-  .habit-item .name{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;}
+  .habit-item .name{display:flex;align-items:center;gap:10px;font-size:14.5px;font-weight:500;}
   .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
   .toggle{
-    width:44px;height:26px;border-radius:999px;background:#e5e7eb;position:relative;
+    width:48px;height:28px;border-radius:999px;background:#e5e7eb;position:relative;
     cursor:pointer;transition:background .15s;border:none;flex-shrink:0;
   }
   .toggle::after{
-    content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;
+    content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;
     background:#fff;border-radius:50%;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.2);
   }
   .toggle.on{background:var(--green);}
-  .toggle.on::after{left:21px;}
+  .toggle.on::after{left:23px;}
   .habit-item.done{background:#f0fdf4;}
 
   /* Calendar */
-  .cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;}
-  .cal-head span{text-align:center;font-size:12px;color:var(--sub);font-weight:600;}
-  .cal-body{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;}
+  .cal-head span{text-align:center;font-size:11px;color:var(--sub);font-weight:600;}
+  .cal-body{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
   .cal-cell{
-    aspect-ratio:1/1;border-radius:10px;border:1px solid var(--line);
-    padding:6px;display:flex;flex-direction:column;justify-content:space-between;
+    aspect-ratio:1/1;border-radius:9px;border:1px solid var(--line);
+    padding:4px;display:flex;flex-direction:column;justify-content:space-between;
     cursor:pointer;background:#fff;position:relative;
   }
   .cal-cell.empty{border:none;cursor:default;}
-  .cal-cell:hover:not(.empty){border-color:var(--accent);}
+  .cal-cell:active:not(.empty){border-color:var(--accent);}
   .cal-cell.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
   .cal-cell.today .daynum{color:var(--accent);font-weight:800;}
-  .daynum{font-size:12px;color:var(--ink);font-weight:600;}
-  .dots{display:flex;flex-wrap:wrap;gap:3px;}
-  .dots .dot{width:6px;height:6px;}
+  .daynum{font-size:11px;color:var(--ink);font-weight:600;}
+  .dots{display:flex;flex-wrap:wrap;gap:2px;}
+  .dots .dot{width:5px;height:5px;}
   .cal-cell .pct{
-    position:absolute;bottom:4px;right:6px;font-size:9px;color:var(--sub);
+    position:absolute;bottom:3px;right:4px;font-size:8px;color:var(--sub);
+  }
+  @media(min-width:640px){
+    .cal-body, .cal-head{gap:6px;}
+    .cal-cell{padding:6px;border-radius:10px;}
+    .daynum{font-size:12px;}
+    .dots .dot{width:6px;height:6px;}
+    .cal-cell .pct{font-size:9px;bottom:4px;right:6px;}
   }
 
   /* Stats */
   .stat-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
   .stat-row:last-child{margin-bottom:0;}
-  .stat-row .name{width:90px;font-size:13px;font-weight:500;flex-shrink:0;display:flex;align-items:center;gap:8px;}
+  .stat-row .name{width:82px;font-size:12.5px;font-weight:500;flex-shrink:0;display:flex;align-items:center;gap:6px;}
   .bar-bg{flex:1;height:10px;background:#f1f2f4;border-radius:999px;overflow:hidden;}
   .bar-fill{height:100%;border-radius:999px;}
-  .stat-row .pct-txt{width:40px;text-align:right;font-size:12px;color:var(--sub);font-weight:600;}
+  .stat-row .pct-txt{width:38px;text-align:right;font-size:12px;color:var(--sub);font-weight:600;}
 
-  .summary-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+  .summary-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
   .mini-card{
     background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:14px 16px;text-align:center;
+    padding:10px 8px;text-align:center;
   }
-  .mini-card .val{font-size:24px;font-weight:800;color:var(--accent);}
-  .mini-card .lbl{font-size:12px;color:var(--sub);margin-top:4px;}
+  .mini-card .val{font-size:16px;font-weight:800;color:var(--accent);line-height:1.25;word-break:keep-all;}
+  .mini-card .lbl{font-size:10.5px;color:var(--sub);margin-top:4px;line-height:1.3;}
+  @media(min-width:480px){
+    .summary-cards{gap:12px;}
+    .mini-card{padding:14px 16px;}
+    .mini-card .val{font-size:22px;}
+    .mini-card .lbl{font-size:12px;}
+  }
 
   canvas{max-width:100%;}
 
-  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
   .legend span{font-size:11px;color:var(--sub);display:flex;align-items:center;gap:5px;}
 
-  footer{text-align:center;color:var(--sub);font-size:11px;margin-top:10px;}
+  footer{text-align:center;color:var(--sub);font-size:11px;margin-top:14px;line-height:1.5;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div>
+    <div class="header-top">
       <h1>루틴 트래커</h1>
       <div class="sub-title">조기 기상 · 운동 실행 · 메일 리뷰 · 금주하기 · 공부하기</div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;">
-      <button class="today-btn" id="todayBtn">오늘로 이동</button>
+    <div class="header-controls">
       <div class="month-nav">
         <button id="prevMonth">◀</button>
         <span class="month-label" id="monthLabel"></span>
         <button id="nextMonth">▶</button>
       </div>
+      <button class="today-btn" id="todayBtn">오늘</button>
     </div>
   </header>
 
   <div class="summary-cards" id="summaryCards"></div>
 
   <div class="grid">
-    <div>
-      <div class="card">
-        <h2>월별 캘린더</h2>
-        <div class="cal-head" id="calHead"></div>
-        <div class="cal-body" id="calBody"></div>
-        <div class="legend" id="legend"></div>
+    <div class="card today-panel area-today">
+      <h2>습관 체크</h2>
+      <div class="date-row">
+        <div class="d" id="selectedDateLabel"></div>
       </div>
-      <div class="card">
-        <h2>일별 완료 추이</h2>
-        <canvas id="trendChart" height="90"></canvas>
-      </div>
+      <div class="habit-list" id="habitList"></div>
     </div>
 
-    <div>
-      <div class="card today-panel">
-        <h2>습관 체크</h2>
-        <div class="date-row">
-          <div class="d" id="selectedDateLabel"></div>
-        </div>
-        <div class="habit-list" id="habitList"></div>
-      </div>
-      <div class="card">
-        <h2>이번 달 습관별 달성률</h2>
-        <div id="statBars"></div>
-      </div>
+    <div class="card area-stats">
+      <h2>이번 달 습관별 달성률</h2>
+      <div id="statBars"></div>
+    </div>
+
+    <div class="card area-calendar">
+      <h2>월별 캘린더</h2>
+      <div class="cal-head" id="calHead"></div>
+      <div class="cal-body" id="calBody"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="card area-trend">
+      <h2>일별 완료 추이</h2>
+      <canvas id="trendChart" height="90"></canvas>
     </div>
   </div>
 
