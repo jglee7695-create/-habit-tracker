@@ -25,8 +25,8 @@
     --c1:#4f46e5; /* 조기 기상 */
     --c2:#0891b2; /* 운동 실행 */
     --c3:#7c3aed; /* 메일 리뷰 */
-    --c4:#ea580c; /* 금주하기 */
-    --c5:#059669; /* 공부하기 */
+    --c4:#ea580c; /* 금주 하기 */
+    --c5:#059669; /* 공부 하기 */
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html{ -webkit-text-size-adjust:100%; }
@@ -205,7 +205,7 @@
   <header>
     <div class="header-top">
       <h1>루틴 트래커</h1>
-      <div class="sub-title">조기 기상 · 운동 실행 · 메일 리뷰 · 금주하기 · 공부하기</div>
+      <div class="sub-title">조기 기상 · 운동 실행 · 메일 리뷰 · 금주 하기 · 공부 하기</div>
     </div>
     <div class="header-controls">
       <div class="month-nav">
@@ -254,8 +254,8 @@ const HABITS = [
   { id:'wake',   name:'조기 기상',  color:'var(--c1)', hex:'#4f46e5' },
   { id:'exercise', name:'운동 실행', color:'var(--c2)', hex:'#0891b2' },
   { id:'mail',   name:'메일 리뷰',  color:'var(--c3)', hex:'#7c3aed' },
-  { id:'noalcohol', name:'금주하기', color:'var(--c4)', hex:'#ea580c' },
-  { id:'read',   name:'공부하기',  color:'var(--c5)', hex:'#059669' },
+  { id:'noalcohol', name:'금주 하기', color:'var(--c4)', hex:'#ea580c' },
+  { id:'read',   name:'공부 하기',  color:'var(--c5)', hex:'#059669' },
 ];
 
 const STORAGE_KEY = 'routine_tracker_data_v1';
@@ -525,4 +525,4 @@ document.getElementById('todayBtn').addEventListener('click', ()=>{
 renderAll();
 </script>
 </body>
-</html>
+</
