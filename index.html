@@ -8,6 +8,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="루틴 트래커">
 <meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <title>루틴 트래커</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
@@ -143,6 +147,40 @@
   .toggle.on::after{left:23px;}
   .habit-item.done{background:#f0fdf4;}
 
+  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .panel-head h2{margin:0;}
+  .edit-toggle-btn{
+    border:1px solid var(--line);background:#fff;color:var(--sub);
+    border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0;
+  }
+  .edit-toggle-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
+
+  .habit-edit-row{display:flex;align-items:center;gap:8px;width:100%;}
+  .color-input{
+    -webkit-appearance:none;appearance:none;width:32px;height:32px;border:none;border-radius:50%;
+    padding:0;background:none;cursor:pointer;flex-shrink:0;overflow:hidden;
+  }
+  .color-input::-webkit-color-swatch-wrapper{padding:0;}
+  .color-input::-webkit-color-swatch{border:2px solid var(--line);border-radius:50%;}
+  .habit-name-input{
+    flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;
+    font-family:inherit;color:var(--ink);min-width:0;background:#fff;
+  }
+  .habit-name-input:focus{outline:none;border-color:var(--accent);}
+  .delete-habit-btn{
+    width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:#fff;
+    color:var(--red);font-size:18px;line-height:1;cursor:pointer;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .delete-habit-btn:active{background:#fef2f2;}
+  .habit-add-row{display:flex;gap:8px;margin-top:2px;}
+  .habit-add-row .habit-name-input{flex:1;}
+  .add-habit-btn{
+    border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);
+    border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;
+  }
+  .add-habit-btn:active{background:var(--accent);color:#fff;}
+
   /* Calendar */
   .cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;}
   .cal-head span{text-align:center;font-size:11px;color:var(--sub);font-weight:600;}
@@ -221,7 +259,10 @@
 
   <div class="grid">
     <div class="card today-panel area-today">
-      <h2>습관 체크</h2>
+      <div class="panel-head">
+        <h2>습관 체크</h2>
+        <button id="editModeBtn" class="edit-toggle-btn">편집</button>
+      </div>
       <div class="date-row">
         <div class="d" id="selectedDateLabel"></div>
       </div>
@@ -250,18 +291,62 @@
 </div>
 
 <script>
-const HABITS = [
-  { id:'wake',   name:'조기 기상',  color:'var(--c1)', hex:'#4f46e5' },
-  { id:'exercise', name:'운동 실행', color:'var(--c2)', hex:'#0891b2' },
-  { id:'mail',   name:'메일 리뷰',  color:'var(--c3)', hex:'#7c3aed' },
-  { id:'noalcohol', name:'금주 하기', color:'var(--c4)', hex:'#ea580c' },
-  { id:'read',   name:'공부 하기',  color:'var(--c5)', hex:'#059669' },
+const DEFAULT_HABITS = [
+  { id:'wake',      name:'조기 기상',  hex:'#4f46e5' },
+  { id:'exercise',  name:'운동 실행',  hex:'#0891b2' },
+  { id:'mail',      name:'메일 리뷰',  hex:'#7c3aed' },
+  { id:'noalcohol', name:'금주 하기',  hex:'#ea580c' },
+  { id:'read',      name:'공부 하기',  hex:'#059669' },
 ];
+const COLOR_PALETTE = ['#4f46e5','#0891b2','#7c3aed','#ea580c','#059669','#db2777','#ca8a04','#0d9488','#dc2626','#4338ca'];
 
 const STORAGE_KEY = 'routine_tracker_data_v1';
+const HABITS_KEY = 'routine_tracker_habits_v1';
 let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+let HABITS = JSON.parse(localStorage.getItem(HABITS_KEY) || 'null') || DEFAULT_HABITS.slice();
+let editMode = false;
+
 function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+function saveHabits(){ localStorage.setItem(HABITS_KEY, JSON.stringify(HABITS)); }
 function fmt(d){ return d.toISOString().slice(0,10); }
+function genId(){ return 'h_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function nextColor(){ return COLOR_PALETTE[HABITS.length % COLOR_PALETTE.length]; }
+
+function addHabit(name){
+  const trimmed = (name || '').trim();
+  if(!trimmed) return;
+  HABITS.push({ id: genId(), name: trimmed, hex: nextColor() });
+  saveHabits();
+  renderAll();
+}
+
+function renameHabit(id, newName){
+  const trimmed = (newName || '').trim();
+  const h = HABITS.find(h=>h.id===id);
+  if(h && trimmed && trimmed !== h.name){
+    h.name = trimmed;
+    saveHabits();
+    renderAll();
+  }
+}
+
+function recolorHabit(id, hex){
+  const h = HABITS.find(h=>h.id===id);
+  if(h){ h.hex = hex; saveHabits(); renderAll(); }
+}
+
+function deleteHabit(id){
+  if(HABITS.length <= 1){
+    alert('최소 1개의 습관은 있어야 합니다.');
+    return;
+  }
+  const h = HABITS.find(h=>h.id===id);
+  if(!h) return;
+  if(!confirm(`"${h.name}" 습관을 삭제할까요?\n(그동안 기록된 데이터는 유지되지만 더 이상 표시되지 않습니다)`)) return;
+  HABITS = HABITS.filter(x=>x.id!==id);
+  saveHabits();
+  renderAll();
+}
 
 let today = new Date();
 today.setHours(0,0,0,0);
@@ -285,12 +370,6 @@ WEEKDAYS.forEach(w=>{
   calHead.appendChild(s);
 });
 
-HABITS.forEach(h=>{
-  const s = document.createElement('span');
-  s.innerHTML = `<span class="dot" style="background:${h.hex}"></span>${h.name}`;
-  legend.appendChild(s);
-});
-
 let trendChart = null;
 
 function renderAll(){
@@ -300,6 +379,16 @@ function renderAll(){
   renderStats();
   renderSummary();
   renderTrend();
+  renderLegend();
+}
+
+function renderLegend(){
+  legend.innerHTML = '';
+  HABITS.forEach(h=>{
+    const s = document.createElement('span');
+    s.innerHTML = `<span class="dot" style="background:${h.hex}"></span>${h.name}`;
+    legend.appendChild(s);
+  });
 }
 
 function renderMonthLabel(){
@@ -372,25 +461,77 @@ function renderHabitList(){
 
   HABITS.forEach(h=>{
     const item = document.createElement('div');
-    item.className = 'habit-item' + (entry[h.id] ? ' done' : '');
+    item.className = 'habit-item' + (!editMode && entry[h.id] ? ' done' : '');
 
-    const nameDiv = document.createElement('div');
-    nameDiv.className = 'name';
-    nameDiv.innerHTML = `<span class="dot" style="background:${h.hex}"></span>${h.name}`;
+    if(editMode){
+      const editRow = document.createElement('div');
+      editRow.className = 'habit-edit-row';
 
-    const toggle = document.createElement('button');
-    toggle.className = 'toggle' + (entry[h.id] ? ' on' : '');
-    toggle.addEventListener('click', ()=>{
-      if(!data[selectedDate]) data[selectedDate] = {};
-      data[selectedDate][h.id] = !data[selectedDate][h.id];
-      save();
-      renderAll();
-    });
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.className = 'color-input';
+      colorInput.value = h.hex;
+      colorInput.addEventListener('input', ()=> recolorHabit(h.id, colorInput.value));
 
-    item.appendChild(nameDiv);
-    item.appendChild(toggle);
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'habit-name-input';
+      nameInput.value = h.name;
+      nameInput.addEventListener('blur', ()=> renameHabit(h.id, nameInput.value));
+      nameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ nameInput.blur(); } });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-habit-btn';
+      delBtn.textContent = '×';
+      delBtn.setAttribute('aria-label','삭제');
+      delBtn.addEventListener('click', ()=> deleteHabit(h.id));
+
+      editRow.appendChild(colorInput);
+      editRow.appendChild(nameInput);
+      editRow.appendChild(delBtn);
+      item.appendChild(editRow);
+    } else {
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'name';
+      nameDiv.innerHTML = `<span class="dot" style="background:${h.hex}"></span>${h.name}`;
+
+      const toggle = document.createElement('button');
+      toggle.className = 'toggle' + (entry[h.id] ? ' on' : '');
+      toggle.addEventListener('click', ()=>{
+        if(!data[selectedDate]) data[selectedDate] = {};
+        data[selectedDate][h.id] = !data[selectedDate][h.id];
+        save();
+        renderAll();
+      });
+
+      item.appendChild(nameDiv);
+      item.appendChild(toggle);
+    }
+
     habitList.appendChild(item);
   });
+
+  if(editMode){
+    const addRow = document.createElement('div');
+    addRow.className = 'habit-add-row';
+
+    const addInput = document.createElement('input');
+    addInput.type = 'text';
+    addInput.placeholder = '새 습관 이름';
+    addInput.className = 'habit-name-input';
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-habit-btn';
+    addBtn.textContent = '+ 추가';
+
+    const doAdd = ()=>{ addHabit(addInput.value); };
+    addBtn.addEventListener('click', doAdd);
+    addInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ doAdd(); } });
+
+    addRow.appendChild(addInput);
+    addRow.appendChild(addBtn);
+    habitList.appendChild(addRow);
+  }
 }
 
 function monthEntries(){
@@ -522,7 +663,14 @@ document.getElementById('todayBtn').addEventListener('click', ()=>{
   renderAll();
 });
 
+document.getElementById('editModeBtn').addEventListener('click', function(){
+  editMode = !editMode;
+  this.textContent = editMode ? '완료' : '편집';
+  this.classList.toggle('active', editMode);
+  renderHabitList();
+});
+
 renderAll();
 </script>
 </body>
-</
+</html>
